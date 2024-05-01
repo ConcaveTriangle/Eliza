@@ -126,7 +126,7 @@ def send_to_chatbot(user_input, password):
 def text_to_speech(text):
     tts.tts_to_file(text=text,
                 file_path="./ai_output.wav",
-                speaker_wav=["./Dolly-Recording-1.wav", "./Dolly-Recording-2.wav", "./Dolly-Recording-4.wav", "./Dolly-Recording-5.wav", "./Dolly-Recording-6.wav", "./Dolly-Recording-7.wav"],
+                speaker_wav=["./audio_samples/Dolly-Recording-1.wav", "./audio_samples/Dolly-Recording-2.wav", "./audio_samples/Dolly-Recording-4.wav", "./audio_samples/Dolly-Recording-5.wav", "./audio_samples/Dolly-Recording-6.wav", "./audio_samples/Dolly-Recording-7.wav"],
                 language="en")
     play_wav(r"./ai_output.wav")
     
