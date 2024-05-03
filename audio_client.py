@@ -5,6 +5,7 @@ import threading
 import pvporcupine
 import pyaudio
 import numpy
+import wave
 
 handle = pvporcupine.create(
     access_key='5zz+OlhiqPqMWv9WxACmi/6bU1Au69UzpqNfCRm6Q39TLbNMhXf1fg==',
@@ -27,42 +28,9 @@ audio_stream = pa.open(
 import webrtcvad
 vad = webrtcvad.Vad(1)  # 1 = Medium aggressiveness
 
-# Transcription Setup
-import torch
-from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, pipeline
-if torch.cuda.is_available():
-    device = "cuda"
-    dtype = torch.float16
-    print("Using CUDA")
-else:
-    device = "cpu"
-    dtype = torch.float32
-    print("Using CPU")
-processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
-model = AutoModelForSpeechSeq2Seq.from_pretrained("openai/whisper-large-v3", torch_dtype=dtype, use_safetensors=True)
-model.to(device)
-pipe = pipeline(
-    "automatic-speech-recognition",
-    model=model,
-    tokenizer=processor.tokenizer,
-    feature_extractor=processor.feature_extractor,
-    max_new_tokens=128,
-    chunk_length_s=30,
-    batch_size=16,
-    return_timestamps=True,
-    torch_dtype=dtype,
-    device=device,
-)
-
 # Message passing setup
 import requests
-
-# Text to Speech Setup
-import wave
-from TTS.api import TTS
-
-print(TTS().list_models())
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+import base64
 
 def detected_wake_word():
     pcm = audio_stream.read(handle.frame_length, exception_on_overflow=False)
@@ -109,26 +77,13 @@ def play_recorded_audio(audio_data):
     playback_stream.stop_stream()
     playback_stream.close()
 
-def transcribe_audio(audio_data):
-    # Convert byte data to numpy array
-    audio_array = numpy.frombuffer(audio_data, dtype=numpy.int16)
-
-    # Transcribe using the Whisper model pipeline
-    result = pipe(audio_array)
-    return result["text"]
-
-def send_to_chatbot(user_input, password):
+def send_to_chatbot(message, password):
     url = 'https://upright-jolly-troll.ngrok-free.app/chat'
-    data = {'input': user_input, 'password': password}
-    response = requests.post(url, json=data)
-    return response.json()['response']
-
-def text_to_speech(text):
-    tts.tts_to_file(text=text,
-                file_path="./ai_output.wav",
-                speaker_wav=["./audio_samples/Dolly-Recording-1.wav", "./audio_samples/Dolly-Recording-2.wav", "./audio_samples/Dolly-Recording-4.wav", "./audio_samples/Dolly-Recording-5.wav", "./audio_samples/Dolly-Recording-6.wav", "./audio_samples/Dolly-Recording-7.wav"],
-                language="en")
-    play_wav(r"./ai_output.wav")
+    encoded_audio = base64.b64encode(message).decode('utf-8')
+    data = {'message': encoded_audio, 'password': password}
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(url, json=data, headers=headers)
+    return response.content
     
 def play_wav(path):
     f = wave.open(path, "rb")
@@ -170,22 +125,10 @@ while True:
         listening_thread.join()
         recording_thread.join()
 
+        send_to_chatbot(recorded_audio, "password")
+
+        with open("ai_output.wav", "wb") as f:
+            f.write(recorded_audio)
+
         print("Playing back recorded audio...")
         play_recorded_audio(recorded_audio)
-
-        print("Transcribing...")
-        play_wav(r"./voice_feedback/Transcribing.wav")
-        transcription = transcribe_audio(recorded_audio)
-        print(transcription)
-        print("Transcription: \"", transcription, "\"")
-
-        print("Sending to chatbot...")
-        play_wav(r"./voice_feedback/Responding.wav")
-        try: 
-            response = send_to_chatbot(transcription, "ConcaveTriangle")
-        except: 
-            response = "I'm sorry, I couldn't understand that."
-        
-        print("Generating audio...")
-        play_wav(r"./voice_feedback/Generating.wav")
-        text_to_speech(response)

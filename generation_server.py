@@ -1,6 +1,9 @@
 # Message passing setup
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from hashlib import sha256
+import base64
+
+app = Flask(__name__)
 
 # Transcription Setup
 import numpy
@@ -82,7 +85,6 @@ def text_to_speech(text):
                 file_path="./ai_output.wav",
                 speaker_wav=["./Dolly-Recording-1.wav", "./Dolly-Recording-2.wav", "./Dolly-Recording-4.wav", "./Dolly-Recording-5.wav", "./Dolly-Recording-6.wav", "./Dolly-Recording-7.wav"],
                 language="en")
-    play_wav(r"./ai_output.wav")
     
 def play_wav(path):
     f = wave.open(path, "rb")
@@ -100,9 +102,8 @@ def play_wav(path):
     stream.close()
     p.terminate()
 
-
-print("Listening for wake word...")
 def feedback(recorded_audio):
+    recorded_audio = base64.b64decode(recorded_audio)
     print("Transcribing...")
     play_wav(r"./voice_feedback/Transcribing.wav")
     transcription = transcribe_audio(recorded_audio)
@@ -119,3 +120,20 @@ def feedback(recorded_audio):
     print("Generating audio...")
     play_wav(r"./voice_feedback/Generating.wav")
     text_to_speech(response)
+    return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True, attachment_filename='ai_output.wav')
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json()
+    audio = data.get('message')
+    password = data.get('password')
+    password = sha256(password.encode('utf-8')).hexdigest()
+    if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
+        chatbot_response = feedback(audio)
+        return jsonify({'response': chatbot_response})
+    else: 
+        return jsonify({'error': 'Wrong password'}), 403
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=6969)
