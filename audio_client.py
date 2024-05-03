@@ -125,10 +125,12 @@ while True:
         listening_thread.join()
         recording_thread.join()
 
-        send_to_chatbot(recorded_audio, "password")
+        print("Playing back recorded audio...")
+        play_recorded_audio(recorded_audio)
+
+        print("Sending audio to chatbot...")
+
+        send_to_chatbot(recorded_audio, "ConcaveTriangle")
 
         with open("ai_output.wav", "wb") as f:
             f.write(recorded_audio)
-
-        print("Playing back recorded audio...")
-        play_recorded_audio(recorded_audio)
