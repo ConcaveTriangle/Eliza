@@ -105,20 +105,20 @@ def play_wav(path):
 def feedback(recorded_audio):
     recorded_audio = base64.b64decode(recorded_audio)
     print("Transcribing...")
-    play_wav(r"./voice_feedback/Transcribing.wav")
+
     transcription = transcribe_audio(recorded_audio)
     print(transcription)
     print("Transcription: \"", transcription, "\"")
 
     print("Generating Response")
-    play_wav(r"./voice_feedback/Responding.wav")
+
     try: 
         response = generate_response(transcription)
     except: 
         response = "I'm sorry, I couldn't understand that."
     
     print("Generating audio...")
-    play_wav(r"./voice_feedback/Generating.wav")
+    
     text_to_speech(response)
     return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True)
 

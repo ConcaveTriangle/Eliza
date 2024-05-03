@@ -114,7 +114,7 @@ while True:
         # Create and start a thread for recording audio
         recorded_audio = None
         def record_audio_thread():
-            time.sleep(0.65)
+            time.sleep(1)
             global recorded_audio
             recorded_audio = record_audio()
 
@@ -130,9 +130,9 @@ while True:
 
         print("Sending audio to chatbot...")
 
-        send_to_chatbot(recorded_audio, "ConcaveTriangle")
+        response_audio = send_to_chatbot(recorded_audio, "ConcaveTriangle")
 
         with open("ai_output.wav", "wb") as f:
-            f.write(recorded_audio)
+            f.write(response_audio)
 
         play_wav("ai_output.wav")
