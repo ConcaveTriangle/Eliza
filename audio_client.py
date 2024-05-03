@@ -134,3 +134,5 @@ while True:
 
         with open("ai_output.wav", "wb") as f:
             f.write(recorded_audio)
+            
+        play_wav("ai_output.wav")

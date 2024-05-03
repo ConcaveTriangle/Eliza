@@ -120,7 +120,7 @@ def feedback(recorded_audio):
     print("Generating audio...")
     play_wav(r"./voice_feedback/Generating.wav")
     text_to_speech(response)
-    return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True, attachment_filename='ai_output.wav')
+    return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True)
 
 @app.route('/chat', methods=['POST'])
 def chat():
