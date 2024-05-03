@@ -130,7 +130,7 @@ def chat():
     password = sha256(password.encode('utf-8')).hexdigest()
     if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
         chatbot_response = feedback(audio)
-        return jsonify({'response': chatbot_response})
+        return chatbot_response
     else: 
         return jsonify({'error': 'Wrong password'}), 403
 
