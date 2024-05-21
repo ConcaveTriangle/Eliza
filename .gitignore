@@ -3,3 +3,4 @@ voice_feedback/.DS_Store
 ai_output.wav
 piper/
 models/
+/audio_samples

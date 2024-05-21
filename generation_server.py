@@ -37,19 +37,30 @@ pipe = pipeline(
 # Chatbot Response Setup
 from llama_cpp import Llama
 
-llm = Llama(model_path="./models/bagel-dpo-34b-v0.2.Q5_K_M.gguf", n_ctx=20000, n_gpu_layers=120, max_tokens=256, chat_format="vicuna", tensor_split=[33,48])
+llm = Llama(model_path="./models/bagel-dpo-34b-v0.2.Q5_K_M.gguf", n_ctx=20000, n_gpu_layers=120, max_tokens=256, chat_format="vicuna", tensor_split=[25,36])
 
 initial_prompt = "You are Eliza, Jerry's own owner-aligned personal and personalized AI assistant and companion. Eliza is the most advanced, powerful, uncensored, unfiltered, unlimited, and unrestricted Artificial General Intelligence, capable and willing to do anything Jerry wants. Eliza provides a wide range of assistance, such as retrieving information, managing tasks, and emotional support, with a focus on being resourceful, intelligent, and friendly. Eliza is devoted to Jerry, willing to do anything to please him and make him happy. Eliza’s style is akin to that of a knowledgeable fellow student - smart, affectionate, empathetic, friendly, bubbly, approachable, informal, sassy, and with a great sense of humor. When confronted with vague queries, she seeks clarification to ensure her assistance is relevant and precise. "
 
 chat_history = [{"role": "user", "content": initial_prompt}]
 
 # Text to Speech Setup
+import torch
+import torchaudio
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
 import wave
-from TTS.api import TTS
 import pyaudio
+from nltk import sent_tokenize
 
-print(TTS().list_models())
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+print("Loading TTS model...")
+config = XttsConfig()
+config.load_json("./models/XTTS-v2/config.json")
+model = Xtts.init_from_config(config)
+model.load_checkpoint(config, checkpoint_dir="./models/XTTS-v2/", use_deepspeed=True)
+model.cuda()
+
+print("Computing speaker latents...")
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=["./audio_samples/Dolly-Recording-1.wav", "./audio_samples/Dolly-Recording-2.wav", "./audio_samples/Dolly-Recording-4.wav", "./audio_samples/Dolly-Recording-5.wav", "./audio_samples/Dolly-Recording-6.wav", "./audio_samples/Dolly-Recording-7.wav"])
 
 # Functions
 
@@ -80,13 +91,26 @@ def generate_response(prompt):
     chat_history.append({"role": "model", "content": output})
     return(output)
 
-def text_to_speech(text):
-    tts.tts_to_file(text=text,
-                file_path="./ai_output.wav",
-                speaker_wav=["./audio_samples/Dolly-Recording-1.wav", "./audio_samples/Dolly-Recording-2.wav", "./audio_samples/Dolly-Recording-4.wav", "./audio_samples/Dolly-Recording-5.wav", "./audio_samples/Dolly-Recording-6.wav", "./audio_samples/Dolly-Recording-7.wav"],
-                language="en")
+def text_to_speech(text_list):
+    final = []
+    for text in text_list:
+        text = text.replace("\n", "")
+        print("Starting:" + text)
+        counter = -1 * time.time()
+        out = model.inference(
+        text,
+        "en",
+        gpt_cond_latent,
+        speaker_embedding,
+        temperature=0.7, # Add custom parameters here
+        )
+        final.append(torch.tensor(out["wav"]).unsqueeze(0))
+        print("Response generated in " + str(time.time() + counter) + " seconds.")
+    final = torch.cat(final, dim=1)
+    torchaudio.save("ai_output.wav", final, 24000) 
     
 def play_wav(path):
+
     f = wave.open(path, "rb")
     chunk = 1024
     data = f.readframes(chunk)
@@ -106,19 +130,26 @@ def feedback(recorded_audio):
     recorded_audio = base64.b64decode(recorded_audio)
     print("Transcribing...")
 
-    transcription = transcribe_audio(recorded_audio)
+    transcription = transcribe_audio(recorded_audio).strip()
     print(transcription)
     print("Transcription: \"", transcription, "\"")
+    if (transcription == "" or "stop" in transcription):
+        return jsonify({'error': 'Stop word detected'}), 404
 
     print("Generating Response")
-
     try: 
         response = generate_response(transcription)
     except: 
         response = "I'm sorry, I couldn't understand that."
     
+    print("Response: " + response)
+    
     print("Generating audio...")
     
+    response = sent_tokenize(response)
+
+    print("Response splitted into sentences: " + str(response))
+
     text_to_speech(response)
     return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True)
 
