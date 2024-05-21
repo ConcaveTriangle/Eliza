@@ -17,7 +17,8 @@ audio_list = []
 for path in os.listdir("./audio_samples/mary/"):
     if path.endswith(".wav"):
         audio_list.append(os.path.join("./audio_samples/mary/", path))
-gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=audio_list)
+placeholder = ["./audio_samples/mary/Mary-Recording-49.wav", "./audio_samples/mary/Mary-Recording-54.wav", "./audio_samples/mary/Mary-Recording-37.wav", "./audio_samples/mary/Mary-Recording-5.wav", "./audio_samples/mary/Mary-Recording-10.wav", "./audio_samples/mary/Mary-Recording-61.wav"]
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
 
 print("Inference...")
 def text_to_speech(text_list):
