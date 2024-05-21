@@ -17,7 +17,10 @@ audio_list = []
 for path in os.listdir("./audio_samples/mary/"):
     if path.endswith(".wav"):
         audio_list.append(os.path.join("./audio_samples/mary/", path))
-placeholder = ["./audio_samples/mary/Mary-Recording-49.wav", "./audio_samples/mary/Mary-Recording-54.wav", "./audio_samples/mary/Mary-Recording-37.wav", "./audio_samples/mary/Mary-Recording-5.wav", "./audio_samples/mary/Mary-Recording-10.wav", "./audio_samples/mary/Mary-Recording-61.wav"]
+placeholder = []
+for a in range(10):
+    a += 1
+    placeholder.append("./audio_samples/mary/Mary-Recording-"+str(a)+".wav")
 gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
 
 print("Inference...")
