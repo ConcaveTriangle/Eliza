@@ -3,6 +3,7 @@ import torchaudio
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 import time
+import os
 
 print("Loading model...")
 config = XttsConfig()
@@ -12,7 +13,11 @@ model.load_checkpoint(config, checkpoint_dir="./models/XTTS-v2/", use_deepspeed=
 model.cuda()
 
 print("Computing speaker latents...")
-gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=["./audio_samples/Mary-Recording-1.wav"])
+audio_list = []
+for path in os.listdir("./audio_samples/mary/"):
+    if path.endswith(".wav"):
+        audio_list.append(os.path.join("./audio_samples/mary/", path))
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=audio_list)
 
 print("Inference...")
 def text_to_speech(text_list):
