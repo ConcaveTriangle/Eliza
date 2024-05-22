@@ -143,7 +143,7 @@ while True:
 
         print("Sending audio to chatbot...")
 
-        response_messages = send_to_chatbot(recorded_audio, "ConcaveTriangle", "chat")
+        response_messages = send_to_chatbot(recorded_audio, "ConcaveTriangle", "inference")
         
         for sentence in response_messages:
             response_audio = send_to_chatbot(sentence, "ConcaveTriangle", "tts")

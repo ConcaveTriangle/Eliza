@@ -52,6 +52,7 @@ import wave
 import pyaudio
 from nltk import sent_tokenize
 import time
+import os
 
 print("Loading TTS model...")
 config = XttsConfig()
@@ -61,7 +62,15 @@ model.load_checkpoint(config, checkpoint_dir="./models/XTTS-v2/", use_deepspeed=
 model.cuda()
 
 print("Computing speaker latents...")
-gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=["./audio_samples/Dolly-Recording-1.wav", "./audio_samples/Dolly-Recording-2.wav", "./audio_samples/Dolly-Recording-4.wav", "./audio_samples/Dolly-Recording-5.wav", "./audio_samples/Dolly-Recording-6.wav", "./audio_samples/Dolly-Recording-7.wav"])
+audio_list = []
+for path in os.listdir("./audio_samples/mary/"):
+    if path.endswith(".wav"):
+        audio_list.append(os.path.join("./audio_samples/mary/", path))
+placeholder = []
+for a in range(10):
+    a += 1
+    placeholder.append("./audio_samples/mary/Mary-Recording-"+str(a)+".wav")
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
 
 # Functions
 
@@ -147,8 +156,8 @@ def feedback(recorded_audio):
     print("Response splitted into sentences: " + str(response))
     return response
 
-@app.route('/chat', methods=['POST'])
-def chat():
+@app.route('/inference', methods=['POST'])
+def handle_inference():
     data = request.get_json()
     audio = data.get('message')
     password = data.get('password')
@@ -160,7 +169,7 @@ def chat():
         return jsonify({'error': 'Wrong password'}), 403
     
 @app.route('/tts', methods=['POST'])
-def chat():
+def handle_tts():
     data = request.get_json()
     text_list = data.get('message')
     password = data.get('password')
