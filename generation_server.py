@@ -51,6 +51,7 @@ from TTS.tts.models.xtts import Xtts
 import wave
 import pyaudio
 from nltk import sent_tokenize
+import time
 
 print("Loading TTS model...")
 config = XttsConfig()
@@ -105,7 +106,7 @@ def text_to_speech(text_list):
         temperature=0.7, # Add custom parameters here
         )
         final.append(torch.tensor(out["wav"]).unsqueeze(0))
-        print("Response generated in " + str(time.time() + counter) + " seconds.")
+        print("Audio generated in " + str(time.time() + counter) + " seconds.")
     final = torch.cat(final, dim=1)
     torchaudio.save("ai_output.wav", final, 24000) 
     
@@ -154,6 +155,18 @@ def feedback(recorded_audio):
     return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True)
 
 @app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json()
+    audio = data.get('message')
+    password = data.get('password')
+    password = sha256(password.encode('utf-8')).hexdigest()
+    if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
+        chatbot_response = feedback(audio)
+        return chatbot_response
+    else: 
+        return jsonify({'error': 'Wrong password'}), 403
+    
+@app.route('/tts', methods=['POST'])
 def chat():
     data = request.get_json()
     audio = data.get('message')
