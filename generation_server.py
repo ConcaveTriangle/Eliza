@@ -92,26 +92,21 @@ def generate_response(prompt):
     chat_history.append({"role": "model", "content": output})
     return(output)
 
-def text_to_speech(text_list):
-    final = []
-    for text in text_list:
-        text = text.replace("\n", "")
-        print("Starting:" + text)
-        counter = -1 * time.time()
-        out = model.inference(
-        text,
-        "en",
-        gpt_cond_latent,
-        speaker_embedding,
-        temperature=0.7, # Add custom parameters here
-        )
-        final.append(torch.tensor(out["wav"]).unsqueeze(0))
-        print("Audio generated in " + str(time.time() + counter) + " seconds.")
-    final = torch.cat(final, dim=1)
-    torchaudio.save("ai_output.wav", final, 24000) 
+def text_to_speech(text):
+    text = text.replace("\n", "")
+    print("Starting:" + text)
+    counter = -1 * time.time()
+    out = model.inference(
+    text,
+    "en",
+    gpt_cond_latent,
+    speaker_embedding,
+    temperature=0.7, # Add custom parameters here
+    )
+    torchaudio.save("ai_output.wav", torch.tensor(out["wav"]).unsqueeze(0), 24000) 
+    print("Audio generated in " + str(time.time() + counter) + " seconds.")
     
 def play_wav(path):
-
     f = wave.open(path, "rb")
     chunk = 1024
     data = f.readframes(chunk)
@@ -150,9 +145,7 @@ def feedback(recorded_audio):
     response = sent_tokenize(response)
 
     print("Response splitted into sentences: " + str(response))
-
-    text_to_speech(response)
-    return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True)
+    return response
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -162,18 +155,18 @@ def chat():
     password = sha256(password.encode('utf-8')).hexdigest()
     if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
         chatbot_response = feedback(audio)
-        return chatbot_response
+        return jsonify({'response': chatbot_response})
     else: 
         return jsonify({'error': 'Wrong password'}), 403
     
 @app.route('/tts', methods=['POST'])
 def chat():
     data = request.get_json()
-    audio = data.get('message')
+    text_list = data.get('message')
     password = data.get('password')
     password = sha256(password.encode('utf-8')).hexdigest()
     if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
-        chatbot_response = feedback(audio)
+        chatbot_response = text_to_speech(text_list)
         return chatbot_response
     else: 
         return jsonify({'error': 'Wrong password'}), 403
