@@ -42,4 +42,4 @@ def text_to_speech(text_list):
     final = torch.cat(final, dim=1)
     torchaudio.save("ai_output.wav", final, 24000)
 
-text_to_speech(['i sent twon planes into the twin towers!'])
+text_to_speech(['I found a good problem for this approach!'])
