@@ -85,17 +85,19 @@ def transcribe_audio(audio_data):
 def generate_response(prompt):
     chat_history.append({"role": "user", "content": prompt})
     output = llm.create_chat_completion(chat_history, 
-                                        temperature=1.5, 
+                                        temperature=0.8)
+    """
                                         top_p=0.9, 
                                         top_k=20, 
                                         repeat_penalty=1.15, 
-                                        presence_penalty=0,
-                                        frequency_penalty=0,
+                                        presence_penalty=0.1,
+                                        frequency_penalty=0.1,
                                         typical_p=1,
                                         tfs_z=1,
                                         mirostat_mode=0,
                                         mirostat_tau=5,
-                                        mirostat_eta=0.1)
+                                        mirostat_eta=0.1
+    """
     output = output['choices'][0]['message']['content'] # Filters the message from the output
 
     chat_history.append({"role": "model", "content": output})
