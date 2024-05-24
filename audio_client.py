@@ -31,13 +31,29 @@ vad = webrtcvad.Vad(1)  # 1 = Medium aggressiveness
 # Message passing setup
 import requests
 import base64
+import json
+
+# Initialize the queue
+import queue
+audio_queue = queue.Queue()
+
+def audio_playback_worker():
+    while True:
+        audio_data = audio_queue.get()
+        if audio_data is None:
+            break
+        play_recorded_audio(audio_data)
+        audio_queue.task_done()
+
+# Start the audio playback thread
+playback_thread = threading.Thread(target=audio_playback_worker, daemon=True)
+playback_thread.start()
 
 def detected_wake_word():
     pcm = audio_stream.read(handle.frame_length, exception_on_overflow=False)
     pcm = numpy.frombuffer(pcm, dtype=numpy.int16)
     keyword_index = handle.process(pcm)
     if keyword_index >= 0:
-        print("Wake word detected")
         return True
     return False
 
@@ -70,17 +86,16 @@ def play_recorded_audio(audio_data):
     playback_stream = pa.open(
         format=pyaudio.paInt16,
         channels=1,
-        rate=handle.sample_rate,
+        rate=24000,
         output=True
     )
     playback_stream.write(audio_data)
     playback_stream.stop_stream()
     playback_stream.close()
 
-def send_to_chatbot(message, password):
-    url = 'https://upright-jolly-troll.ngrok-free.app/chat'
-    encoded_audio = base64.b64encode(message).decode('utf-8')
-    data = {'message': encoded_audio, 'password': password}
+def send_to_chatbot(message, password, function):
+    url = 'https://upright-jolly-troll.ngrok-free.app/'+function
+    data = {'message': message, 'password': password}
     headers = {'Content-Type': 'application/json'}
     response = requests.post(url, json=data, headers=headers)
     return response.content
@@ -125,14 +140,19 @@ while True:
         listening_thread.join()
         recording_thread.join()
 
-        print("Playing back recorded audio...")
-        play_recorded_audio(recorded_audio)
-
         print("Sending audio to chatbot...")
 
-        response_audio = send_to_chatbot(recorded_audio, "ConcaveTriangle")
+        encoded_audio = base64.b64encode(recorded_audio).decode('utf-8')
+        response_messages = send_to_chatbot(encoded_audio, "ConcaveTriangle", "inference").decode('utf-8')
+        response_messages = json.loads(response_messages)["response"]
 
-        with open("ai_output.wav", "wb") as f:
-            f.write(response_audio)
+        print(response_messages)
+        
+        for sentence in response_messages:
+            print(sentence)
+            response_audio = send_to_chatbot(sentence, "ConcaveTriangle", "tts")
+            audio_queue.put(response_audio)
+            with open("ai_output.wav", "wb") as f:
+                f.write(response_audio)
 
-        play_wav("ai_output.wav")
+        audio_queue.join()
