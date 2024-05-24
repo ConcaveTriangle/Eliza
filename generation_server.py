@@ -67,9 +67,9 @@ for path in os.listdir("./audio_samples/mary/"):
     if path.endswith(".wav"):
         audio_list.append(os.path.join("./audio_samples/mary/", path))
 placeholder = []
-for a in range(10):
+for a in range(6):
     a += 1
-    placeholder.append("./audio_samples/mary/Mary-Recording-"+str(a)+".wav")
+    placeholder.append("./audio_samples/dolly/Dolly-Recording-"+str(a)+".wav")
 gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
 
 # Functions
@@ -171,13 +171,16 @@ def handle_inference():
 @app.route('/tts', methods=['POST'])
 def handle_tts():
     data = request.get_json()
-    text_list = data.get('message')
+    message = data.get('message')
     password = data.get('password')
     password = sha256(password.encode('utf-8')).hexdigest()
+    print("Received " + message)
     if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
-        chatbot_response = text_to_speech(text_list)
-        return chatbot_response
+        print("Password valid")
+        text_to_speech(message)
+        return send_file("./ai_output.wav", mimetype="audio/wav", as_attachment=True)
     else: 
+        print("Password invalid")
         return jsonify({'error': 'Wrong password'}), 403
 
 
