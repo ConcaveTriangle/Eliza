@@ -152,7 +152,7 @@ while True:
             print(sentence)
             response_audio = send_to_chatbot(sentence, "ConcaveTriangle", "tts")
             audio_queue.put(response_audio)
-            with open("ai_response.wav", "wb") as f:
+            with open("ai_output.wav", "wb") as f:
                 f.write(response_audio)
 
         audio_queue.join()
