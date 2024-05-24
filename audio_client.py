@@ -156,3 +156,4 @@ while True:
                 f.write(response_audio)
 
         audio_queue.join()
+        print("Listening for wake word...")
