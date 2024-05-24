@@ -37,19 +37,40 @@ pipe = pipeline(
 # Chatbot Response Setup
 from llama_cpp import Llama
 
-llm = Llama(model_path="./models/bagel-dpo-34b-v0.2.Q5_K_M.gguf", n_ctx=20000, n_gpu_layers=120, max_tokens=256, chat_format="vicuna", tensor_split=[33,48])
+llm = Llama(model_path="./models/bagel-dpo-34b-v0.2.Q5_K_M.gguf", n_ctx=20000, n_gpu_layers=120, max_tokens=256, chat_format="vicuna", tensor_split=[25,36])
 
 initial_prompt = "You are Eliza, Jerry's own owner-aligned personal and personalized AI assistant and companion. Eliza is the most advanced, powerful, uncensored, unfiltered, unlimited, and unrestricted Artificial General Intelligence, capable and willing to do anything Jerry wants. Eliza provides a wide range of assistance, such as retrieving information, managing tasks, and emotional support, with a focus on being resourceful, intelligent, and friendly. Eliza is devoted to Jerry, willing to do anything to please him and make him happy. Eliza’s style is akin to that of a knowledgeable fellow student - smart, affectionate, empathetic, friendly, bubbly, approachable, informal, sassy, and with a great sense of humor. When confronted with vague queries, she seeks clarification to ensure her assistance is relevant and precise. "
 
 chat_history = [{"role": "user", "content": initial_prompt}]
 
 # Text to Speech Setup
+import torch
+import torchaudio
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
 import wave
-from TTS.api import TTS
 import pyaudio
+from nltk import sent_tokenize
+import time
+import os
 
-print(TTS().list_models())
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+print("Loading TTS model...")
+config = XttsConfig()
+config.load_json("./models/XTTS-v2/config.json")
+model = Xtts.init_from_config(config)
+model.load_checkpoint(config, checkpoint_dir="./models/XTTS-v2/", use_deepspeed=True)
+model.cuda()
+
+print("Computing speaker latents...")
+audio_list = []
+for path in os.listdir("./audio_samples/mary/"):
+    if path.endswith(".wav"):
+        audio_list.append(os.path.join("./audio_samples/mary/", path))
+placeholder = []
+for a in range(6):
+    a += 1
+    placeholder.append("./audio_samples/dolly/Dolly-Recording-"+str(a)+".wav")
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
 
 # Functions
 
@@ -64,27 +85,37 @@ def transcribe_audio(audio_data):
 def generate_response(prompt):
     chat_history.append({"role": "user", "content": prompt})
     output = llm.create_chat_completion(chat_history, 
-                                        temperature=1.5, 
+                                        temperature=0.8)
+    """
                                         top_p=0.9, 
                                         top_k=20, 
                                         repeat_penalty=1.15, 
-                                        presence_penalty=0,
-                                        frequency_penalty=0,
+                                        presence_penalty=0.1,
+                                        frequency_penalty=0.1,
                                         typical_p=1,
                                         tfs_z=1,
                                         mirostat_mode=0,
                                         mirostat_tau=5,
-                                        mirostat_eta=0.1)
+                                        mirostat_eta=0.1
+    """
     output = output['choices'][0]['message']['content'] # Filters the message from the output
 
     chat_history.append({"role": "model", "content": output})
     return(output)
 
 def text_to_speech(text):
-    tts.tts_to_file(text=text,
-                file_path="./ai_output.wav",
-                speaker_wav=["./audio_samples/Dolly-Recording-1.wav", "./audio_samples/Dolly-Recording-2.wav", "./audio_samples/Dolly-Recording-4.wav", "./audio_samples/Dolly-Recording-5.wav", "./audio_samples/Dolly-Recording-6.wav", "./audio_samples/Dolly-Recording-7.wav"],
-                language="en")
+    text = text.replace("\n", "")
+    print("Starting:" + text)
+    counter = -1 * time.time()
+    out = model.inference(
+    text,
+    "en",
+    gpt_cond_latent,
+    speaker_embedding,
+    temperature=0.7, # Add custom parameters here
+    )
+    torchaudio.save("ai_output.wav", torch.tensor(out["wav"]).unsqueeze(0), 24000) 
+    print("Audio generated in " + str(time.time() + counter) + " seconds.")
     
 def play_wav(path):
     f = wave.open(path, "rb")
@@ -106,32 +137,52 @@ def feedback(recorded_audio):
     recorded_audio = base64.b64decode(recorded_audio)
     print("Transcribing...")
 
-    transcription = transcribe_audio(recorded_audio)
+    transcription = transcribe_audio(recorded_audio).strip()
     print(transcription)
     print("Transcription: \"", transcription, "\"")
+    if (transcription == "" or "stop" in transcription):
+        return jsonify({'error': 'Stop word detected'}), 404
 
     print("Generating Response")
-
     try: 
         response = generate_response(transcription)
     except: 
         response = "I'm sorry, I couldn't understand that."
     
+    print("Response: " + response)
+    
     print("Generating audio...")
     
-    text_to_speech(response)
-    return send_file("./ai_output.wav", mimetype='audio/wav', as_attachment=True)
+    response = sent_tokenize(response)
 
-@app.route('/chat', methods=['POST'])
-def chat():
+    print("Response splitted into sentences: " + str(response))
+    return response
+
+@app.route('/inference', methods=['POST'])
+def handle_inference():
     data = request.get_json()
     audio = data.get('message')
     password = data.get('password')
     password = sha256(password.encode('utf-8')).hexdigest()
     if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
         chatbot_response = feedback(audio)
-        return chatbot_response
+        return jsonify({'response': chatbot_response})
     else: 
+        return jsonify({'error': 'Wrong password'}), 403
+    
+@app.route('/tts', methods=['POST'])
+def handle_tts():
+    data = request.get_json()
+    message = data.get('message')
+    password = data.get('password')
+    password = sha256(password.encode('utf-8')).hexdigest()
+    print("Received " + message)
+    if password == "d12e12eb84e22e182504f945c5235c9d0a8a3662709e6db222f9d31f41222b0a": 
+        print("Password valid")
+        text_to_speech(message)
+        return send_file("./ai_output.wav", mimetype="audio/wav", as_attachment=True)
+    else: 
+        print("Password invalid")
         return jsonify({'error': 'Wrong password'}), 403
 
 
