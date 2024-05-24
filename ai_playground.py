@@ -16,7 +16,7 @@ chat_history = [{"role": "user", "content": initial_prompt}]
 def generate_response(prompt):
     chat_history.append({"role": "user", "content": prompt})
     output = llm.create_chat_completion(chat_history, 
-                                        temperature=0.8)
+                                        temperature=0.8, stream=True)
     """
                                         top_p=0.9, 
                                         top_k=20, 
@@ -29,10 +29,17 @@ def generate_response(prompt):
                                         mirostat_tau=5,
                                         mirostat_eta=0.1
     """
-    output = output['choices'][0]['message']['content'] # Filters the message from the output
+    response = ""
+    print("Streaming")
+    for chunk in output:
+        chunk = chunk['choices'][0]['delta']
+        if "content" in chunk:
+            response += chunk["content"]
+        print(response)
+    response = response.strip()
 
-    chat_history.append({"role": "model", "content": output})
-    return(output)
+    chat_history.append({"role": "model", "content": response})
+    return(response)
 
 @app.route('/inference', methods=['POST'])
 def handle_inference():

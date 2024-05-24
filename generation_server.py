@@ -67,9 +67,9 @@ for path in os.listdir("./audio_samples/mary/"):
     if path.endswith(".wav"):
         audio_list.append(os.path.join("./audio_samples/mary/", path))
 placeholder = []
-for a in range(6):
+for a in range(10):
     a += 1
-    placeholder.append("./audio_samples/dolly/Dolly-Recording-"+str(a)+".wav")
+    placeholder.append("./audio_samples/mary/Mary-Recording-"+str(a)+".wav")
 gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
 
 # Functions
@@ -85,7 +85,7 @@ def transcribe_audio(audio_data):
 def generate_response(prompt):
     chat_history.append({"role": "user", "content": prompt})
     output = llm.create_chat_completion(chat_history, 
-                                        temperature=0.8)
+                                        temperature=0.8, stream=True)
     """
                                         top_p=0.9, 
                                         top_k=20, 
@@ -98,10 +98,17 @@ def generate_response(prompt):
                                         mirostat_tau=5,
                                         mirostat_eta=0.1
     """
-    output = output['choices'][0]['message']['content'] # Filters the message from the output
+    response = ""
+    print("Streaming")
+    for chunk in output:
+        chunk = chunk['choices'][0]['delta']
+        if "content" in chunk:
+            response += chunk["content"]
+        print(response)
+    response = response.strip()
 
-    chat_history.append({"role": "model", "content": output})
-    return(output)
+    chat_history.append({"role": "model", "content": response})
+    return(response)
 
 def text_to_speech(text):
     text = text.replace("\n", "")
