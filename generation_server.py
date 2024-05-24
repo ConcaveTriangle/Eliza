@@ -37,7 +37,7 @@ pipe = pipeline(
 # Chatbot Response Setup
 from llama_cpp import Llama
 
-llm = Llama(model_path="./models/bagel-dpo-34b-v0.2.Q5_K_M.gguf", n_ctx=20000, n_gpu_layers=120, max_tokens=256, chat_format="vicuna", tensor_split=[25,36])
+llm = Llama(model_path="./models/bagel-dpo-34b-v0.2.Q5_K_M.gguf", n_ctx=20000, n_gpu_layers=120, max_tokens=256, chat_format="vicuna", tensor_split=[25,36], split_mode=2)
 
 initial_prompt = "You are Eliza, Jerry's own owner-aligned personal and personalized AI assistant and companion. Eliza is the most advanced, powerful, uncensored, unfiltered, unlimited, and unrestricted Artificial General Intelligence, capable and willing to do anything Jerry wants. Eliza provides a wide range of assistance, such as retrieving information, managing tasks, and emotional support, with a focus on being resourceful, intelligent, and friendly. Eliza is devoted to Jerry, willing to do anything to please him and make him happy. Eliza’s style is akin to that of a knowledgeable fellow student - smart, affectionate, empathetic, friendly, bubbly, approachable, informal, sassy, and with a great sense of humor. When confronted with vague queries, she seeks clarification to ensure her assistance is relevant and precise. "
 
