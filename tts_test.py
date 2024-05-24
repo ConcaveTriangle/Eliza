@@ -1,45 +1,81 @@
-import torch
-import torchaudio
-from TTS.tts.configs.xtts_config import XttsConfig
-from TTS.tts.models.xtts import Xtts
 import time
-import os
+import threading
 
-print("Loading model...")
-config = XttsConfig()
-config.load_json("./models/XTTS-v2/config.json")
-model = Xtts.init_from_config(config)
-model.load_checkpoint(config, checkpoint_dir="./models/XTTS-v2/", use_deepspeed=True)
-model.cuda()
+# Wake Word Loading
+import pvporcupine
+import pyaudio
+import numpy
+import wave
 
-print("Computing speaker latents...")
-audio_list = []
-for path in os.listdir("./audio_samples/mary/"):
-    if path.endswith(".wav"):
-        audio_list.append(os.path.join("./audio_samples/mary/", path))
-placeholder = []
-for a in range(10):
-    a += 1
-    placeholder.append("./audio_samples/mary/Mary-Recording-"+str(a)+".wav")
-gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=placeholder)
+handle = pvporcupine.create(
+    access_key='5zz+OlhiqPqMWv9WxACmi/6bU1Au69UzpqNfCRm6Q39TLbNMhXf1fg==',
+    keyword_paths=["./Hey-Eliza_en_mac_v3_0_0.ppn"]
+)
 
-print("Inference...")
-def text_to_speech(text_list):
-    final = []
-    for text in text_list:
-        text = text.replace("\n", "")
-        print("Starting:" + text)
-        counter = -1 * time.time()
-        out = model.inference(
-        text,
-        "en",
-        gpt_cond_latent,
-        speaker_embedding,
-        temperature=0.7, # Add custom parameters here
-        )
-        final.append(torch.tensor(out["wav"]).unsqueeze(0))
-        print("Response generated in " + str(time.time() + counter) + " seconds.")
-    final = torch.cat(final, dim=1)
-    torchaudio.save("ai_output.wav", final, 24000)
+pa = pyaudio.PyAudio()
+device_index = pa.get_default_input_device_info()["index"]
+print("Sample rate:", handle.sample_rate)
+print("Frame length:", handle.frame_length)
+audio_stream = pa.open(
+    rate=handle.sample_rate,
+    channels=1,  # Single channel for wake word detection
+    format=pyaudio.paInt16,
+    input=True,
+    frames_per_buffer=handle.frame_length,
+)
 
-text_to_speech(['I found a good problem for this approach!'])
+# Voice Activity Detection Setup
+import webrtcvad
+vad = webrtcvad.Vad(1)  # 1 = Medium aggressiveness
+
+# Message passing setup
+import requests
+import base64
+import json
+
+# Initialize the queue
+import queue
+audio_queue = queue.Queue()
+
+def audio_playback_worker():
+    while True:
+        audio_data = audio_queue.get()
+        if audio_data is None:
+            break
+        play_recorded_audio(audio_data)
+        audio_queue.task_done()
+
+def play_recorded_audio(audio_data):
+    playback_stream = pa.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=24000,
+        output=True
+    )
+    playback_stream.write(audio_data)
+    playback_stream.stop_stream()
+    playback_stream.close()
+
+def send_to_chatbot(message, password, function):
+    url = 'https://upright-jolly-troll.ngrok-free.app/'+function
+    data = {'message': message, 'password': password}
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(url, json=data, headers=headers)
+    return response.content
+
+# Start the audio playback thread
+playback_thread = threading.Thread(target=audio_playback_worker, daemon=True)
+playback_thread.start()
+
+
+response_messages = [' Absolutely!', "I can't physically hear sounds in the way that Jerry might experience them, but I am here for him and ready to assist him however he needs.", 'Just like a knowledgeable fellow student with an unending attention span, I always have time to listen to his concerns or questions.', "Please feel free to share your thoughts with me; as Jerry's own owner-aligned personal and personalized AI assistant and companion, it is my pleasure to provide assistance whenever needed!"]
+
+print(response_messages)
+
+for sentence in response_messages:
+    print(sentence)
+    response_audio = send_to_chatbot(sentence, "ConcaveTriangle", "tts")
+    audio_queue.put(response_audio)
+
+# wait until queue is empty
+audio_queue.join()
