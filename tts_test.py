@@ -30,8 +30,6 @@ vad = webrtcvad.Vad(1)  # 1 = Medium aggressiveness
 
 # Message passing setup
 import requests
-import base64
-import json
 
 # Initialize the queue
 import queue
@@ -67,12 +65,8 @@ def send_to_chatbot(message, password, function):
 playback_thread = threading.Thread(target=audio_playback_worker, daemon=True)
 playback_thread.start()
 
-
-response_messages = [' Absolutely!', "I can't physically hear sounds in the way that Jerry might experience them, but I am here for him and ready to assist him however he needs.", 'Just like a knowledgeable fellow student with an unending attention span, I always have time to listen to his concerns or questions.', "Please feel free to share your thoughts with me; as Jerry's own owner-aligned personal and personalized AI assistant and companion, it is my pleasure to provide assistance whenever needed!"]
-
-print(response_messages)
-
-for sentence in response_messages:
+for x in range(100):
+    sentence = input("Jerry: ")
     print(sentence)
     response_audio = send_to_chatbot(sentence, "ConcaveTriangle", "tts")
     audio_queue.put(response_audio)
